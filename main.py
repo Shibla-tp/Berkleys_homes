@@ -9,14 +9,14 @@ app = FastAPI()
 # Old Airtable Configuration
 BASE_ID_OLD = 'app5s8zl7DsUaDmtx'
 API_KEY = 'patELEdV0LAx6Aba3.393bf0e41eb59b4b80de15b94a3d122eab50035c7c34189b53ec561de590dff3'  # Replace with a secure method to fetch the key
-TABLE_NAME_OLD = 'copy_linkedin_profile_data'
+TABLE_NAME_OLD = 'backup_linkedin_profile_data_171124'
 
 # New Airtable Configuration
-BASE_ID_NEW = 'appTEXhgxahKgWLgx'
-TABLE_NAME_NEW = 'api_testing'
-TABLE_NAME_NEW1 = 'campaign_input_api'
+BASE_ID_NEW = 'app5s8zl7DsUaDmtx'
+TABLE_NAME_NEW = 'cleaned_profile_information'
+TABLE_NAME_NEW1 = 'campaign_input'
 # base_id_new = os.getenv('AIRTABLE_BASE_ID', 'appTEXhgxahKgWLgx')
-API_KEY_NEW = os.getenv('AIRTABLE_API_KEY', 'patPgbQSC8pAg1Gbl.50ef48062b7a80f7611bd428ab9199927eb2965e8ad1057cf4371eb8999eb491')
+API_KEY_NEW = os.getenv('AIRTABLE_API_KEY', 'patELEdV0LAx6Aba3.393bf0e41eb59b4b80de15b94a3d122eab50035c7c34189b53ec561de590dff3')
 
 airtable_old = Airtable(BASE_ID_OLD, TABLE_NAME_OLD, API_KEY)
 airtable_new = Airtable(BASE_ID_NEW, TABLE_NAME_NEW, API_KEY_NEW)
@@ -59,10 +59,7 @@ def send_to_airtable_if_new(df, airtable_instance, unique_field, desired_fields=
 @app.get("/fetch_and_update_data")
 async def fetch_and_update_data():
     try:
-        # Fetch all records from the old Airtable
-        all_records = []
-        for page in airtable_old.get_iter():
-            all_records.extend(page)
+        all_records = airtable_old.get_all()  # Fetch all records
 
         # Extract fields and convert to DataFrame
         data = [record.get('fields', {}) for record in all_records]
@@ -88,12 +85,17 @@ async def fetch_and_update_data():
             df[column].fillna("Unknown", inplace=True)
 
 
-        # Clean `phoneNumber` field
+        # # Clean `phoneNumber` field
+        # if 'phoneNumber' in df.columns:
+        #     df['phoneNumber'] = df['phoneNumber'].apply(
+        #         lambda x: "Unknown" if str(x).lower() == "Unknown" else ''.join(filter(str.isdigit, str(x)))
+        #     )
+        # Clean phoneNumber (remove non-digit characters, handle "Unknown")
         if 'phoneNumber' in df.columns:
+            # Convert phoneNumber to string and clean it, keeping "Unknown" as is
             df['phoneNumber'] = df['phoneNumber'].apply(
-                lambda x: "Unknown" if str(x).lower() == "unknown" else ''.join(filter(str.isdigit, str(x)))
+                lambda x: "Unknown" if str(x).lower() == "unknown" else pd.Series(str(x)).str.replace(r'\D', '', regex=True).iloc[0]
             )
-
 
         # Clean `email` field
         if 'email' in df.columns:
